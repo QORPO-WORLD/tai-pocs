@@ -1,0 +1,48 @@
+[project]
+name = "tai-pocs"
+version = "0.0.1"
+description = "POCs for QORPO AI Agents"
+authors = [
+    { name = "Akim Malyshchyk", email = "akim.malyshchyk@qorpo.world" },
+]
+readme = "README.md"
+
+[tool.flake8]
+ignore = ["E203", "E266", "E501", "W503", "E261"]
+exclude = [
+    ".tox",
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".env",
+    "env",
+    "venv",
+    "env",
+    "*.pyc",
+    "*.egg-info",
+    "*.egg",
+    "build",
+    "dist",
+]
+
+[tool.isort]
+skip = [".tox", "__pycache__", "build", "dist", ".venv", "venv", ".env", "env"]
+profile = "black"
+
+[tool.black]
+line-length = 140
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["application", "tests"]
+exclude = []
+namespaces = false
