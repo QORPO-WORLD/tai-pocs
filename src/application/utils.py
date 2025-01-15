@@ -1,7 +1,7 @@
 import json
 
 
-def get_kill_events(csv_filename: str) -> list[dict]:
+def get_game_events(csv_filename: str) -> list[dict]:
     kills = []
     with open(csv_filename) as f:
         for line in f:

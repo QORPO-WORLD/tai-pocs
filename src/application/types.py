@@ -17,8 +17,11 @@ class KillInstigator(TypedDict):
     num_kills: int
 
 
-class KillEvent(TypedDict):
+class Event(TypedDict):
+    pass
+
+
+class KillEvent(Event):
     victim: dict[str, str]
     KillInstigator: KillInstigator
     location: str
-
