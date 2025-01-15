@@ -6,7 +6,7 @@ from typing import Generator
 
 from mnemonic.mnemonic import Mnemonic
 
-from application.types import KillEvent
+from application.types import Event, KillEvent
 
 
 class Player:
@@ -18,11 +18,15 @@ class Player:
 
 
 class Game:
-    def __init__(self, kills_data: list[dict]) -> None:
+    def __init__(self, events_data: list[dict]) -> None:
         self.players: dict[str, Player] = {}
-        self.kills_data = copy.deepcopy(kills_data)
+        self._events = events_data
+        self.num_players_total = len(self._events) + 1
         self.locations = ("Forest", "Bank", "City", "Desert", "Jungle")
-        self.players_alive = len(kills_data) + 1
+
+    def start(self) -> None:
+        self.events_data = copy.deepcopy(self._events)
+        self.num_players_alive = self.num_players_total
         self.leaderboard: list[tuple[int, str]] = []
 
     def generate_username(self) -> str:
@@ -33,7 +37,7 @@ class Game:
         return random.choice(self.locations)
 
     def create_players_tree(self) -> Player:
-        players_list = [Player(self.generate_username()) for _ in range(self.players_alive)]
+        players_list = [Player(self.generate_username()) for _ in range(self.num_players_total)]
         self.players = {user.username: user for user in players_list}
         root = players_list.pop()
         q = deque([root])
@@ -46,13 +50,8 @@ class Game:
                 q.append(victim)
         return root
 
-    def get_kill_event(self, player: Player) -> Generator[KillEvent, None, None]:
-        if not player:
-            return
-        for victim_username in player.kills:
-            yield from self.get_kill_event(self.players[victim_username])
-        for victim_username in player.kills:
-            yield self._create_kill_event(self.players[victim_username], player)
+    def get_events(self, player: Player) -> Generator[Event, None, None]:
+        yield from self._get_next_kill_event(player)  # TODO: event choosing logic
 
     def _update_leaderboard(self, kill_instigator: Player) -> None:
         for i, (_, username) in enumerate(self.leaderboard):
@@ -69,12 +68,20 @@ class Game:
             return
         heapq.heappush(self.leaderboard, (kill_instigator.current_num_kills, kill_instigator.username))
 
+    def _get_next_kill_event(self, player: Player) -> Generator[KillEvent, None, None]:
+        if not player:
+            return
+        for victim_username in player.kills:
+            yield from self._get_next_kill_event(self.players[victim_username])
+        for victim_username in player.kills:
+            yield self._create_kill_event(self.players[victim_username], player)
+
     def _create_kill_event(self, victim: Player, kill_instigator: Player) -> KillEvent:
-        if not self.kills_data:
+        if not self.events_data:
             raise StopIteration
-        kill = self.kills_data.pop()
+        kill = self.events_data.pop()
         kill_instigator.current_num_kills += 1
-        self.players_alive -= 1
+        self.num_players_alive -= 1
         self._update_leaderboard(kill_instigator)
         event = {
             "victim": {
@@ -94,14 +101,7 @@ class Game:
                 "previous_victims": kill_instigator.previous_victims,
             },
             "location": self.generate_location(),
-            "num_players_alive": self.players_alive,
-            # "leaderboard": [
-            #     {
-            #         "username": username,
-            #         "num_kills": num_kills,
-            #     }
-            #     for num_kills, username in self.leaderboard
-            # ][::-1],
+            "num_players_alive": self.num_players_alive,
         }
         kill_instigator.previous_victims.append(victim.username)
         return event
