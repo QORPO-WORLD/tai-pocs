@@ -1,9 +1,16 @@
+import json
 import time
 from typing import Generator
 
 import boto3
 
-from application.models import ClaudeV2, Model, NovaPro
+from application.models import ClaudeSonnet, ClaudeV2, Model, NovaPro
+
+
+class KnowledgeBase:
+    def __init__(self, base_id: str, bucket_name: str) -> None:
+        self.base_id = base_id
+        self.bucket_name = bucket_name
 
 
 class AwsAPI:
@@ -15,7 +22,11 @@ class AwsAPI:
         self.models_mapping: dict[str, Model] = {
             "amazon.nova-pro-v1:0": NovaPro(region),
             "anthropic.claude-v2": ClaudeV2(region),
+            "anthropic.claude-3-5-sonnet-20240620-v1:0": ClaudeSonnet(region),
         }
+        self.s3 = boto3.client("s3")
+        self.bedrock_agent = boto3.client('bedrock-agent', region_name=self.region)
+        self.knowledge_base = KnowledgeBase("G6NYO7TYAJ", "dev-bedrock-knowledge-base-1")
 
         self.saved_audio_times: list[float] = []
 
@@ -28,18 +39,41 @@ class AwsAPI:
     ) -> Generator[str, None, None]:
         yield from self.models_mapping[model_id].get_streamed_response(messages, start_time, temperature)
 
-    def get_streamed_response_rag(self, prompt: str, start_time: float) -> Generator[str, None, None]:
+    def update_knowledge_base(self, data: list[dict]) -> None:
+        json_content = json.dumps(data, indent=4)
+        self.s3.put_object(Bucket=self.knowledge_base.bucket_name, Key="game.json", Body=json_content)
+        self.bedrock_agent.start_ingestion_job(
+            clientToken="745d152c-d705-45af-af0a-1ba0d30dd9a9",
+            dataSourceId="ANGNGSZDVM",
+            knowledgeBaseId=self.knowledge_base.base_id
+        )
+
+    def get_streamed_response_rag(self, model: Model, prompt: str, start_time: float) -> Generator[str, None, None]:
         """
         Note: looks like it's impossible to pass a list of prompts when using knowledge bases.
         """
         bedrock_agent_runtime = boto3.client("bedrock-agent-runtime", region_name=self.region)
-        knowledge_base_config = {"knowledgeBaseId": "XXXXXXXX", "modelArn": "XXXXXXXX"}
+        knowledge_base_config = {
+            "knowledgeBaseId": self.knowledge_base.base_id,
+            "modelArn": model.arn,
+            "generationConfiguration": {},
+            "orchestrationConfiguration": {},
+            "retrievalConfiguration": {
+                "vectorSearchConfiguration": {
+                    "numberOfResults": 5,
+                },
+            },
+        }
 
         stream = bedrock_agent_runtime.retrieve_and_generate_stream(
             input={"text": prompt},
-            retrieveAndGenerateConfiguration={"type": "KNOWLEDGE_BASE", "knowledgeBaseConfiguration": knowledge_base_config},
+            retrieveAndGenerateConfiguration={
+                "type": "KNOWLEDGE_BASE",
+                "knowledgeBaseConfiguration": knowledge_base_config,
+            },
         )
-        yield from Model.generate_sentences_from_stream(stream, start_time)
+        model = self.models_mapping[model.model_id]
+        yield from model.generate_sentences_from_stream_rag(stream, start_time)
 
     def get_bedrock_stats(self, model_id: str) -> str:
         model = self.models_mapping[model_id]
@@ -77,3 +111,6 @@ class AwsAPI:
         return (
             f"Polly latencies: avg={average_saved_audio_time:.2f}sec, min={min_saved_audio_time:.2f}sec, max={max_saved_audio_time:.2f}sec"
         )
+
+    def get_bedrock_rag_stats(self) -> str:
+        return "RAG stats placeholder"

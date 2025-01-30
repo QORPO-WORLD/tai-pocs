@@ -9,6 +9,7 @@ import boto3
 class Model(ABC):
     def __init__(self, model_id: str, region: str) -> None:
         self.model_id = model_id
+        self.arn = f"arn:aws:bedrock:{region}::foundation-model/{model_id}"
         self.bedrock_runtime = boto3.client("bedrock-runtime", region_name=region)
         self.got_sentence_times: list[float] = []
 
@@ -16,6 +17,18 @@ class Model(ABC):
         sentence = []
         for chunk in stream["body"]:
             text = self.get_text_from_chunk(chunk)
+            sentence.append(text)
+            if any(char in text for char in (".", "!", "?")):
+                self.got_sentence_times.append(time.time() - start_time)
+                yield "".join(sentence)
+                sentence = []
+        if sentence:
+            yield "".join(sentence)
+
+    def generate_sentences_from_stream_rag(self, stream, start_time: float) -> Generator[str, None, None]:
+        sentence = []
+        for chunk in stream["stream"]:
+            text = chunk.get("output", {}).get("text", "")
             sentence.append(text)
             if any(char in text for char in (".", "!", "?")):
                 self.got_sentence_times.append(time.time() - start_time)
@@ -37,11 +50,7 @@ class Model(ABC):
         raise NotImplementedError
 
 
-class ClaudeV2(Model):
-    def __init__(self, region="eu-central-1") -> None:
-        model_id = "anthropic.claude-v2"
-        super().__init__(model_id, region)
-
+class Anthropic(Model):
     def get_streamed_response(self, messages: list[dict], start_time: float, temperature: float = 0.9) -> Generator[str, None, None]:
         request = json.dumps(
             {
@@ -64,6 +73,18 @@ class ClaudeV2(Model):
 
     def get_content(self, prompt: str) -> dict:
         return {"type": "text", "text": prompt}
+
+
+class ClaudeV2(Anthropic):
+    def __init__(self, region="eu-central-1") -> None:
+        model_id = "anthropic.claude-v2"
+        super().__init__(model_id, region)
+
+
+class ClaudeSonnet(Anthropic):
+    def __init__(self, region="eu-central-1") -> None:
+        model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+        super().__init__(model_id, region)
 
 
 class NovaPro(Model):
