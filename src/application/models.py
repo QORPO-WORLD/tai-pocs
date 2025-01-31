@@ -1,21 +1,31 @@
 import json
 import time
 from abc import ABC, abstractmethod
-from typing import Generator
+from enum import Enum
+from typing import Callable, Generator
 
 import boto3
 
 
+class ModelID(Enum):
+    NOVA_PRO = "amazon.nova-pro-v1:0"
+    CLAUDE_V2 = "anthropic.claude-v2"
+    CLAUDE_SONNET = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+
+
 class Model(ABC):
-    def __init__(self, model_id: str, region: str) -> None:
+    def __init__(self, model_id: ModelID, region: str) -> None:
         self.model_id = model_id
+        self.arn = f"arn:aws:bedrock:{region}::foundation-model/{model_id.value}"
         self.bedrock_runtime = boto3.client("bedrock-runtime", region_name=region)
         self.got_sentence_times: list[float] = []
 
-    def generate_sentences_from_stream(self, stream, start_time: float) -> Generator[str, None, None]:
+    def generate_sentences_from_stream(
+        self, stream_body, text_getter: Callable[[dict], str], start_time: float
+    ) -> Generator[str, None, None]:
         sentence = []
-        for chunk in stream["body"]:
-            text = self.get_text_from_chunk(chunk)
+        for chunk in stream_body:
+            text = text_getter(chunk)
             sentence.append(text)
             if any(char in text for char in (".", "!", "?")):
                 self.got_sentence_times.append(time.time() - start_time)
@@ -37,11 +47,7 @@ class Model(ABC):
         raise NotImplementedError
 
 
-class ClaudeV2(Model):
-    def __init__(self, region="eu-central-1") -> None:
-        model_id = "anthropic.claude-v2"
-        super().__init__(model_id, region)
-
+class Anthropic(Model):
     def get_streamed_response(self, messages: list[dict], start_time: float, temperature: float = 0.9) -> Generator[str, None, None]:
         request = json.dumps(
             {
@@ -53,10 +59,10 @@ class ClaudeV2(Model):
         )
 
         stream = self.bedrock_runtime.invoke_model_with_response_stream(
-            modelId=self.model_id,
+            modelId=self.model_id.value,
             body=request,
         )
-        yield from self.generate_sentences_from_stream(stream, start_time)
+        yield from self.generate_sentences_from_stream(stream["body"], self.get_text_from_chunk, start_time)
 
     def get_text_from_chunk(self, chunk: dict) -> str:
         delta = json.loads(chunk["chunk"]["bytes"].decode("utf-8")).get("delta")
@@ -66,10 +72,19 @@ class ClaudeV2(Model):
         return {"type": "text", "text": prompt}
 
 
+class ClaudeV2(Anthropic):
+    def __init__(self, region="eu-central-1") -> None:
+        super().__init__(ModelID.CLAUDE_V2, region)
+
+
+class ClaudeSonnet(Anthropic):
+    def __init__(self, region="eu-central-1") -> None:
+        super().__init__(ModelID.CLAUDE_SONNET, region)
+
+
 class NovaPro(Model):
     def __init__(self, region="us-east-1") -> None:
-        model_id = "amazon.nova-pro-v1:0"
-        super().__init__(model_id, region)
+        super().__init__(ModelID.NOVA_PRO, region)
 
     def get_streamed_response(self, messages: list[dict], start_time: float, temperature: float = 0.9) -> Generator[str, None, None]:
         request = json.dumps(
@@ -83,10 +98,10 @@ class NovaPro(Model):
         )
 
         stream = self.bedrock_runtime.invoke_model_with_response_stream(
-            modelId=self.model_id,
+            modelId=self.model_id.value,
             body=request,
         )
-        yield from self.generate_sentences_from_stream(stream, start_time)
+        yield from self.generate_sentences_from_stream(stream["body"], self.get_text_from_chunk, start_time)
 
     def get_content(self, prompt: str) -> dict:
         return {"text": prompt}
