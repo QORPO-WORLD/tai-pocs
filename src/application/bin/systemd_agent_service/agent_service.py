@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 from collections import deque
 from queue import Queue
@@ -8,16 +9,16 @@ from application.aws import AwsAPI
 from application.models import ModelID
 from application.utils import dump_message_to_file, trim_queue
 
+event_example = '[{"timestamp": 1739204298, "players": [{"user_id": "1234", "character": "Zuri", "hit_points": 78, "shield": 15, "current_state": "Alive", "shot_list": [{"kill_instigator": {"weapon": {"name": "AK-47", "type": "Rifle"}}, "victim": {"user_id": "", "character": "None"}}, {"kill_instigator": {"weapon": {"name": "AK-47", "type": "Rifle"}}, "victim": {"user_id": "d55ea7", "character": "New Order"}}], "weapons": ["AK-47", "Shotgun"], "ammo": [{"name": "ShotgunAmmo", "amount": 25}, {"name": "RifleAmmo", "amount": 50}]}, {"user_id": "a20cff", "character": "Zuri", "hit_points": 78, "shield": 15, "current_state": "Alive", "shot_list": [{"kill_instigator": {"weapon": {"name": "AK-47", "type": "Rifle"}}, "victim": {"user_id": "", "character": "None"}}, {"kill_instigator": {"weapon": {"name": "AK-47", "type": "Rifle"}}, "victim": {"user_id": "d55ea7", "character": "New Order"}}], "weapons": ["AK-47", "Shotgun"], "ammo": [{"name": "ShotgunAmmo", "amount": 25}, {"name": "RifleAmmo", "amount": 50}]}]} ]'
 init_prompts = [
     (
-        "Imagine you're commenting the battle royale game match. You'll be getting kill events from the game like this one: "
-        '[{"victim": {"username": str},"KillInstigator": {"username": str,"Distance": float,"first_kill": bool,"used_weapon": {"type": str,"name": str},"Headshot": bool,"OneShot": bool,"num_kills": int,"previous_victims": [str]},"location": str,"num_players_alive": int}]. '
-        "Sometimes you will be getting more than one event in this list. "
-        "You'll need to comment on the kill events, using 3 senteces max. "
-        "If there are multiple events, you can decide either to comment on all of them or comment the last of them while also keeping in mind other events. "
-        "Even if there are multiple events, you should still be able to say everything in 3 sentences. "
-        "You're not supposed to always use each field for the comment, but you can use them if you think they're relevant. "
-        "Try to also remember previous events and if you see some patterns feel free to voice them. Understood?"
+        "Imagine you're commenting the battle royale game match. You'll be getting lists of game state events like this one: "
+        f"{event_example} "
+        "Try to see the changes in the game state and comment on them. "
+        "Requirement 1: you need to use 3 senteces max. "
+        "Requirement 2: You're not supposed to always use each field for the comment, but you can use them if you think they're relevant. "
+        "Requirement 3: You will also get some events which haven't happened in the game yet, you can take them into consideration but you can't comment on them directly. "
+        "Understood?"
     ),
     "Understood. I'm ready to commentate on the battle royale game events.",
 ]
@@ -38,7 +39,8 @@ def get_sentences(q, aws: AwsAPI, model_id: ModelID, temperature: float) -> Gene
         }
         for i, prompt in enumerate(q)
     ]
-    yield from aws.get_streamed_response(model_id, messages, time.time(), temperature)
+    prompt = json.dumps(messages)
+    yield from aws.get_streamed_response_rag(model_id, prompt, time.time(), temperature)
 
 
 async def main(
