@@ -1,3 +1,6 @@
+git+https://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@github.com/QORPO-WORLD/qorpo-data-structures.git@develop
 boto3==1.35.86
 mnemonic==0.21
 tqdm==4.67.1
+sqlalchemy==1.4.25
+alembic==1.7.4
