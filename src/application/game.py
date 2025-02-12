@@ -1,24 +1,28 @@
-from __future__ import annotations
 import copy
 import heapq
 import random
 from collections import deque
 from typing import Generator
-from typing import List
 
 from mnemonic.mnemonic import Mnemonic
 
-from application.dataclasses.game_state_event import KillInstigator, Player, Playground, Sample, Location, Weapon, \
-    Victim, Shot, Ammo
+from application.event_samples import Event, KillEvent
 
 
-# Updated Game class
+class Player:
+    def __init__(self, username, kills=None) -> None:
+        self.username = username
+        self.current_num_kills = 0
+        self.previous_victims: list[str] = []
+        self.kills: set[str] = kills or set()
+
+
 class Game:
-    def __init__(self, events_data: List[dict]) -> None:
+    def __init__(self, events_data: list[dict]) -> None:
         self.players: dict[str, Player] = {}
         self._events = events_data
         self.num_players_total = len(self._events) + 1
-        self.locations = [Location(x=random.randint(0, 100), y=random.randint(0, 100), z=random.randint(0, 100))]
+        self.locations = ("Forest", "Bank", "City", "Desert", "Jungle")
 
     def start(self) -> None:
         self.events_data = copy.deepcopy(self._events)
@@ -26,15 +30,15 @@ class Game:
         self.leaderboard: list[tuple[int, str]] = []
 
     def generate_username(self) -> str:
-        # Placeholder for random username generation
-        return f"Player_{random.randint(1000, 9999)}"
+        mnemonic = Mnemonic("english")
+        return "".join([word.capitalize() for word in mnemonic.generate().split()[:2]])
 
-    def generate_location(self) -> Location:
+    def generate_location(self) -> str:
         return random.choice(self.locations)
 
     def create_players_tree(self) -> Player:
-        players_list = [self._create_random_player() for _ in range(self.num_players_total)]
-        self.players = {player.user_id: player for player in players_list}
+        players_list = [Player(self.generate_username()) for _ in range(self.num_players_total)]
+        self.players = {user.username: user for user in players_list}
         root = players_list.pop()
         q = deque([root])
         while q:
@@ -42,43 +46,62 @@ class Game:
             kills_num = min(random.randint(0, 6), len(players_list))
             for _ in range(kills_num):
                 victim = players_list.pop()
-                # Simulate shots
-                shot = self._create_random_shot(killer, victim)
-                killer.shot_list.append(shot)
+                killer.kills.add(victim.username)
                 q.append(victim)
         return root
 
-    def _create_random_player(self) -> Player:
-        return Player(
-            user_id=self.generate_username(),
-            character="RandomCharacter",
-            location=self.generate_location(),
-            rotation=random.uniform(0, 360),
-            hit_points=100,
-            shield=50,
-            current_state="alive",
-            shot_list=[],
-            weapons=["Pistol", "Rifle"],
-            ammo=[Ammo(name="Pistol Ammo", amount=50), Ammo(name="Rifle Ammo", amount=30)],
-        )
+    def get_events(self, player: Player) -> Generator[Event, None, None]:
+        yield from self._get_next_kill_event(player)  # TODO: event choosing logic
 
-    def _create_random_shot(self, instigator: Player, victim: Player) -> Shot:
-        return Shot(
-            kill_instigator=KillInstigator(
-                location=instigator.location,
-                weapon=Weapon(name="Pistol", type="Handgun"),
-            ),
-            victim=Victim(
-                user_id=victim.user_id,
-                character=victim.character,
-            ),
-        )
+    def _update_leaderboard(self, kill_instigator: Player) -> None:
+        for i, (_, username) in enumerate(self.leaderboard):
+            if username != kill_instigator.username:
+                continue
+            self.leaderboard[i] = (kill_instigator.current_num_kills, kill_instigator.username)
+            heapq.heapify(self.leaderboard)
+            return
 
-    def get_events(self, player: Player) -> Generator[Shot, None, None]:
-        yield from self._get_next_kill_event(player)
+        if len(self.leaderboard) > 5:
+            heapq.heappop(self.leaderboard)
+        kills_required, _ = self.leaderboard[0] if self.leaderboard else (0, "")
+        if kill_instigator.current_num_kills < kills_required:
+            return
+        heapq.heappush(self.leaderboard, (kill_instigator.current_num_kills, kill_instigator.username))
 
-    def _get_next_kill_event(self, player: Player) -> Generator[Shot, None, None]:
+    def _get_next_kill_event(self, player: Player) -> Generator[KillEvent, None, None]:
         if not player:
             return
-        for shot in player.shot_list:
-            yield shot
+        for victim_username in player.kills:
+            yield from self._get_next_kill_event(self.players[victim_username])
+        for victim_username in player.kills:
+            yield self._create_kill_event(self.players[victim_username], player)
+
+    def _create_kill_event(self, victim: Player, kill_instigator: Player) -> KillEvent:
+        if not self.events_data:
+            raise StopIteration
+        kill = self.events_data.pop()
+        kill_instigator.current_num_kills += 1
+        self.num_players_alive -= 1
+        self._update_leaderboard(kill_instigator)
+        event = {
+            "victim": {
+                "username": victim.username,
+            },
+            "KillInstigator": {
+                "username": kill_instigator.username,
+                "Distance": kill["KillInstigator"]["Distance"],
+                "first_kill": bool(kill["KillInstigator"].get("first_kill", False)),
+                "used_weapon": {
+                    "type": kill["KillInstigator"]["used_weapon"]["type"],
+                    "name": kill["KillInstigator"]["used_weapon"]["name"],
+                },
+                "Headshot": bool(kill["KillInstigator"]["Headshot"]),
+                "OneShot": bool(kill["KillInstigator"]["OneShot"]),
+                "num_kills": kill_instigator.current_num_kills,
+                "previous_victims": kill_instigator.previous_victims,
+            },
+            "location": self.generate_location(),
+            "num_players_alive": self.num_players_alive,
+        }
+        kill_instigator.previous_victims.append(victim.username)
+        return event
