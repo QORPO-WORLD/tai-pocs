@@ -7,8 +7,15 @@ from pathlib import Path
 
 from application.bin.systemd_agent_service import agent_service
 from application.bin.systemd_preprocessing_service import preprocessing
+from application.bin.account_service.account_countainer import AccountContainer
 
 shutdown_event = threading.Event()
+DATA_FOLDER_PATH = "data"
+
+
+def initialize_services():
+    user_nicknames_path = Path(DATA_FOLDER_PATH) / "user_nicknames.json"
+    account_container = AccountContainer(file_path=user_nicknames_path)
 
 
 
@@ -46,4 +53,5 @@ if __name__ == "__main__":
     # except KeyboardInterrupt:
     #     sys.exit(0)
 
+    initialize_services()
     preprocess_test()

@@ -1,5 +1,8 @@
 from uuid import uuid4
-from pydantic import BaseModel, Field
+from wsgiref.validate import validator
+from application.bin.account_service.account_countainer import AccountContainer
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional
 
 
@@ -70,6 +73,7 @@ class Ammo(BaseModel):
 
 class Player(BaseModel):
     user_id: str = Field(..., alias="user_id")
+    user_nickname: str = Field(default="Unknown")
     character: str = Field(..., alias="character")
     location: Location = Field(..., alias="location")
     rotation: Rotation = Field(..., alias="rotation")
@@ -79,6 +83,20 @@ class Player(BaseModel):
     shot_list: List[Shot] = Field(..., alias="shot_list")
     weapons: List[str] = Field(..., alias="weapons")
     ammo: List[Ammo] = Field(..., alias="ammo")
+
+    @classmethod
+    @field_validator("user_nickname", mode="after")
+    def user_nickname_validator(cls, value):
+        return user_nickname_mapper(value)
+
+    @model_validator(mode="after")
+    @classmethod
+    def model_after_validator(cls, obj):
+        nickname = user_nickname_mapper(obj.user_id)
+        obj.user_nickname = nickname
+        return obj
+
+
 
     @classmethod
     def sample(cls):
@@ -134,19 +152,23 @@ class GameStateGroupGameEvent(BaseModel):
         )
 
 
-
-
+def user_nickname_mapper(user_id: str):
+    if user_id == "":
+        return "AI Player"
+    else:
+        return AccountContainer().get_nick(user_id, default="Unknown")
 
 
 def main():
     # loads playground.json
 
-    # import json
-    # with open('../../data/playground.json', 'r') as f:
-    #     data = json.load(f)
+    import json
+    with open('../../data/playground.json', 'r') as f:
+        data = json.load(f)
 
-    model = GameStateGroupGameEvent.sample()
+    model = GameStateGroupGameEvent(**data)
     print("Succesfully loaded")
+
 
 if __name__ == "__main__":
     main()
