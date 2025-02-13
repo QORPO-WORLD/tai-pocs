@@ -1,19 +1,21 @@
-import asyncio
 import json
 import time
 from collections import deque
-from queue import Queue
 from typing import Generator
 
+from sqlalchemy import and_
+
 from application.aws import AwsAPI
+from application.db_models import DatabaseConnection, GameState
+from application.dtos.game_state_event import GameStateGroupGameEvent
 from application.models import ModelID
 from application.utils import dump_message_to_file, trim_queue
 
-event_example = '[{"timestamp": 1739204298, "players": [{"user_id": "1234", "character": "Zuri", "hit_points": 78, "shield": 15, "current_state": "Alive", "shot_list": [{"kill_instigator": {"weapon": {"name": "AK-47", "type": "Rifle"}}, "victim": {"user_id": "", "character": "None"}}, {"kill_instigator": {"weapon": {"name": "AK-47", "type": "Rifle"}}, "victim": {"user_id": "d55ea7", "character": "New Order"}}], "weapons": ["AK-47", "Shotgun"], "ammo": [{"name": "ShotgunAmmo", "amount": 25}, {"name": "RifleAmmo", "amount": 50}]}, {"user_id": "a20cff", "character": "Zuri", "hit_points": 78, "shield": 15, "current_state": "Alive", "shot_list": [{"kill_instigator": {"weapon": {"name": "AK-47", "type": "Rifle"}}, "victim": {"user_id": "", "character": "None"}}, {"kill_instigator": {"weapon": {"name": "AK-47", "type": "Rifle"}}, "victim": {"user_id": "d55ea7", "character": "New Order"}}], "weapons": ["AK-47", "Shotgun"], "ammo": [{"name": "ShotgunAmmo", "amount": 25}, {"name": "RifleAmmo", "amount": 50}]}]} ]'
+event_example = GameStateGroupGameEvent.sample()
 init_prompts = [
     (
         "Imagine you're commenting the battle royale game match. You'll be getting lists of game state events like this one: "
-        f"{event_example} "
+        f"{event_example.model_dump()} "
         "Try to see the changes in the game state and comment on them. "
         "Requirement 1: you need to use 3 senteces max. "
         "Requirement 2: You're not supposed to always use each field for the comment, but you can use them if you think they're relevant. "
@@ -24,8 +26,13 @@ init_prompts = [
 ]
 
 
-def compose_prompt_from_events(events: list[dict]) -> str:
-    return "some result"
+def compose_prompt_from_events(past_events: list[dict], future_events: list[dict]) -> str:
+    return json.dumps(
+        {
+            "already_happened": past_events,
+            "will_happen_soon": future_events,
+        }
+    )
 
 
 def get_sentences(q, aws: AwsAPI, model_id: ModelID, temperature: float) -> Generator[str, None, None]:
@@ -39,12 +46,10 @@ def get_sentences(q, aws: AwsAPI, model_id: ModelID, temperature: float) -> Gene
         }
         for i, prompt in enumerate(q)
     ]
-    prompt = json.dumps(messages)
-    yield from aws.get_streamed_response_rag(model_id, prompt, time.time(), temperature)
+    yield from aws.get_streamed_response(model_id, messages, time.time(), temperature)
 
 
-async def main(
-    event_batches_queue: Queue,
+def main(
     region: str = "us-east-1",
     model_id: ModelID = ModelID.NOVA_PRO,
     context_window_size: int = 20,
@@ -58,14 +63,40 @@ async def main(
     dump_message_to_file("User", q[-2], filename)
     dump_message_to_file("Assistant", q[-1], filename)
 
-    while True:
-        if event_batches_queue.empty():
-            await asyncio.sleep(1)
-            continue
-        events: list[dict] = event_batches_queue.get()
-        event_batches_queue.task_done()
+    GAME_START_TIMESTAMP = 1739395974
+    current_timestamp = GAME_START_TIMESTAMP
+    comment_window_sec = 5
+    future_window_sec = 3
+    db = DatabaseConnection()
+    session = db.get_session()
 
-        prompt = compose_prompt_from_events(events)
+    while True:
+        past_events: list[GameState] = (
+            session.query(GameState)
+            .filter(
+                and_(
+                    GameState.event_created_at >= current_timestamp,
+                    GameState.event_created_at < current_timestamp + comment_window_sec,
+                )
+            )
+            .all()
+        )
+        future_events: list[GameState] = (
+            session.query(GameState)
+            .filter(
+                and_(
+                    GameState.event_created_at >= current_timestamp + comment_window_sec,
+                    GameState.event_created_at < current_timestamp + comment_window_sec + future_window_sec,
+                )
+            )
+            .all()
+        )
+        current_timestamp += comment_window_sec
+
+        past_jsons = [json.loads(event.event_data) for event in past_events]
+        future_jsons = [json.loads(event.event_data) for event in future_events]
+
+        prompt = compose_prompt_from_events(past_jsons, future_jsons)
         trim_queue(q, context_window_size, init_prompts)
 
         q.append(prompt)
