@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from pydantic import BaseModel, Field
 from typing import List
 
@@ -56,12 +58,14 @@ class Player(BaseModel):
 
 
 class GameState(BaseModel):
-    timestamp: int = Field(..., alias="timestamp")
+    game_state_id: str = Field(default_factory=lambda: str(uuid4()))
+    created_at: int = Field(..., alias="timestamp")
     players: List[Player] = Field(..., alias="players")
 
 
 class GameStateEventData(BaseModel):
-    events: List[GameState] = Field(..., alias="samples")
+    game_id: str = Field(default_factory=lambda: str(uuid4()), alias="game_id")
+    game_states: List[GameState] = Field(..., alias="samples")
 
 
 class GameStateGroupGameEvent(BaseModel):
