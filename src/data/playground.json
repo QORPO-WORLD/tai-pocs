@@ -1,266 +1,285 @@
 {
-  "samples": [
-    {
-      "timestamp": 1739204298,
-      "players": [
-        {
-          "user_id": "1234",
-          "character": "Zuri",
-          "location": {
-            "x": 200,
-            "y": 300,
-            "z": 500
+  "event_identifier": "CC.GroupGameEvent.GameState",
+  "event_data": {
+    "samples": [
+      {
+        "timestamp": 1739395974,
+        "players": [
+          {
+            "user_id": "1234",
+            "character": "Zuri",
+            "location": {
+              "x": 200,
+              "y": 300,
+              "z": 500
+            },
+            "rotation": {
+              "pitch": 160,
+              "yaw": 30,
+              "roll": 0
+            },
+            "hit_points": 78,
+            "shield": 15,
+            "current_state": "Alive",
+            "shot_list": [
+              {
+                "kill_instigator": {
+                  "location": {
+                    "x": 200,
+                    "y": 300,
+                    "z": 500
+                  },
+                  "weapon": {
+                    "name": "AK-47",
+                    "type": "Rifle"
+                  }
+                },
+                "victim": {
+                  "user_id": "",
+                  "character": "None"
+                }
+              },
+              {
+                "kill_instigator": {
+                  "location": {
+                    "x": 200,
+                    "y": 300,
+                    "z": 500
+                  },
+                  "weapon": {
+                    "name": "AK-47",
+                    "type": "Rifle"
+                  }
+                },
+                "victim": {
+                  "user_id": "d55ea7",
+                  "character": "New Order"
+                }
+              }
+            ],
+            "weapons": [
+              "AK-47",
+              "Shotgun"
+            ],
+            "ammo": [
+              {
+                "name": "ShotgunAmmo",
+                "amount": 25
+              },
+              {
+                "name": "RifleAmmo",
+                "amount": 50
+              }
+            ]
           },
-          "rotation": 154.1999969482422,
-          "hit_points": 78,
-          "shield": 15,
-          "current_state": "Alive",
-          "shot_list": [
-            {
-              "kill_instigator": {
-                "location": {
-                  "x": 200,
-                  "y": 300,
-                  "z": 500
+          {
+            "user_id": "a20cff",
+            "character": "Zuri",
+            "location": {
+              "x": 200,
+              "y": 300,
+              "z": 500
+            },
+            "rotation": {
+              "pitch": 160,
+              "yaw": 30,
+              "roll": 0
+            },
+            "hit_points": 78,
+            "shield": 15,
+            "current_state": "Alive",
+            "shot_list": [
+              {
+                "kill_instigator": {
+                  "location": {
+                    "x": 200,
+                    "y": 300,
+                    "z": 500
+                  },
+                  "weapon": {
+                    "name": "AK-47",
+                    "type": "Rifle"
+                  }
                 },
-                "weapon": {
-                  "name": "AK-47",
-                  "type": "Rifle"
+                "victim": {
+                  "user_id": "",
+                  "character": "None"
                 }
               },
-              "victim": {
-                "user_id": "",
-                "character": "None"
-              }
-            },
-            {
-              "kill_instigator": {
-                "location": {
-                  "x": 200,
-                  "y": 300,
-                  "z": 500
+              {
+                "kill_instigator": {
+                  "location": {
+                    "x": 200,
+                    "y": 300,
+                    "z": 500
+                  },
+                  "weapon": {
+                    "name": "AK-47",
+                    "type": "Rifle"
+                  }
                 },
-                "weapon": {
-                  "name": "AK-47",
-                  "type": "Rifle"
+                "victim": {
+                  "user_id": "d55ea7",
+                  "character": "New Order"
+                }
+              }
+            ],
+            "weapons": [
+              "AK-47",
+              "Shotgun"
+            ],
+            "ammo": [
+              {
+                "name": "ShotgunAmmo",
+                "amount": 25
+              },
+              {
+                "name": "RifleAmmo",
+                "amount": 50
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "timestamp": 1739395974,
+        "players": [
+          {
+            "user_id": "1234",
+            "character": "Zuri",
+            "location": {
+              "x": 200,
+              "y": 300,
+              "z": 500
+            },
+            "rotation": {
+              "pitch": 160,
+              "yaw": 30,
+              "roll": 0
+            },
+            "hit_points": 78,
+            "shield": 15,
+            "current_state": "Alive",
+            "shot_list": [
+              {
+                "kill_instigator": {
+                  "location": {
+                    "x": 200,
+                    "y": 300,
+                    "z": 500
+                  },
+                  "weapon": {
+                    "name": "AK-47",
+                    "type": "Rifle"
+                  }
+                },
+                "victim": {
+                  "user_id": "",
+                  "character": "None"
                 }
               },
-              "victim": {
-                "user_id": "d55ea7",
-                "character": "New Order"
+              {
+                "kill_instigator": {
+                  "location": {
+                    "x": 200,
+                    "y": 300,
+                    "z": 500
+                  },
+                  "weapon": {
+                    "name": "AK-47",
+                    "type": "Rifle"
+                  }
+                },
+                "victim": {
+                  "user_id": "d55ea7",
+                  "character": "New Order"
+                }
               }
-            }
-          ],
-          "weapons": [
-            "AK-47",
-            "Shotgun"
-          ],
-          "ammo": [
-            {
-              "name": "ShotgunAmmo",
-              "amount": 25
-            },
-            {
-              "name": "RifleAmmo",
-              "amount": 50
-            }
-          ]
-        },
-        {
-          "user_id": "a20cff",
-          "character": "Zuri",
-          "location": {
-            "x": 200,
-            "y": 300,
-            "z": 500
+            ],
+            "weapons": [
+              "AK-47",
+              "Shotgun"
+            ],
+            "ammo": [
+              {
+                "name": "ShotgunAmmo",
+                "amount": 25
+              },
+              {
+                "name": "RifleAmmo",
+                "amount": 50
+              }
+            ]
           },
-          "rotation": 154.1999969482422,
-          "hit_points": 78,
-          "shield": 15,
-          "current_state": "Alive",
-          "shot_list": [
-            {
-              "kill_instigator": {
-                "location": {
-                  "x": 200,
-                  "y": 300,
-                  "z": 500
+          {
+            "user_id": "a20cff",
+            "character": "Zuri",
+            "location": {
+              "x": 200,
+              "y": 300,
+              "z": 500
+            },
+            "rotation": {
+              "pitch": 160,
+              "yaw": 30,
+              "roll": 0
+            },
+            "hit_points": 78,
+            "shield": 15,
+            "current_state": "Alive",
+            "shot_list": [
+              {
+                "kill_instigator": {
+                  "location": {
+                    "x": 200,
+                    "y": 300,
+                    "z": 500
+                  },
+                  "weapon": {
+                    "name": "AK-47",
+                    "type": "Rifle"
+                  }
                 },
-                "weapon": {
-                  "name": "AK-47",
-                  "type": "Rifle"
+                "victim": {
+                  "user_id": "",
+                  "character": "None"
                 }
               },
-              "victim": {
-                "user_id": "",
-                "character": "None"
-              }
-            },
-            {
-              "kill_instigator": {
-                "location": {
-                  "x": 200,
-                  "y": 300,
-                  "z": 500
+              {
+                "kill_instigator": {
+                  "location": {
+                    "x": 200,
+                    "y": 300,
+                    "z": 500
+                  },
+                  "weapon": {
+                    "name": "AK-47",
+                    "type": "Rifle"
+                  }
                 },
-                "weapon": {
-                  "name": "AK-47",
-                  "type": "Rifle"
+                "victim": {
+                  "user_id": "d55ea7",
+                  "character": "New Order"
                 }
-              },
-              "victim": {
-                "user_id": "d55ea7",
-                "character": "New Order"
               }
-            }
-          ],
-          "weapons": [
-            "AK-47",
-            "Shotgun"
-          ],
-          "ammo": [
-            {
-              "name": "ShotgunAmmo",
-              "amount": 25
-            },
-            {
-              "name": "RifleAmmo",
-              "amount": 50
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "timestamp": 1739204298,
-      "players": [
-        {
-          "user_id": "1234",
-          "character": "Zuri",
-          "location": {
-            "x": 200,
-            "y": 300,
-            "z": 500
-          },
-          "rotation": 154.1999969482422,
-          "hit_points": 78,
-          "shield": 15,
-          "current_state": "Alive",
-          "shot_list": [
-            {
-              "kill_instigator": {
-                "location": {
-                  "x": 200,
-                  "y": 300,
-                  "z": 500
-                },
-                "weapon": {
-                  "name": "AK-47",
-                  "type": "Rifle"
-                }
+            ],
+            "weapons": [
+              "AK-47",
+              "Shotgun"
+            ],
+            "ammo": [
+              {
+                "name": "ShotgunAmmo",
+                "amount": 25
               },
-              "victim": {
-                "user_id": "",
-                "character": "None"
+              {
+                "name": "RifleAmmo",
+                "amount": 50
               }
-            },
-            {
-              "kill_instigator": {
-                "location": {
-                  "x": 200,
-                  "y": 300,
-                  "z": 500
-                },
-                "weapon": {
-                  "name": "AK-47",
-                  "type": "Rifle"
-                }
-              },
-              "victim": {
-                "user_id": "d55ea7",
-                "character": "New Order"
-              }
-            }
-          ],
-          "weapons": [
-            "AK-47",
-            "Shotgun"
-          ],
-          "ammo": [
-            {
-              "name": "ShotgunAmmo",
-              "amount": 25
-            },
-            {
-              "name": "RifleAmmo",
-              "amount": 50
-            }
-          ]
-        },
-        {
-          "user_id": "a20cff",
-          "character": "Zuri",
-          "location": {
-            "x": 200,
-            "y": 300,
-            "z": 500
-          },
-          "rotation": 154.1999969482422,
-          "hit_points": 78,
-          "shield": 15,
-          "current_state": "Alive",
-          "shot_list": [
-            {
-              "kill_instigator": {
-                "location": {
-                  "x": 200,
-                  "y": 300,
-                  "z": 500
-                },
-                "weapon": {
-                  "name": "AK-47",
-                  "type": "Rifle"
-                }
-              },
-              "victim": {
-                "user_id": "",
-                "character": "None"
-              }
-            },
-            {
-              "kill_instigator": {
-                "location": {
-                  "x": 200,
-                  "y": 300,
-                  "z": 500
-                },
-                "weapon": {
-                  "name": "AK-47",
-                  "type": "Rifle"
-                }
-              },
-              "victim": {
-                "user_id": "d55ea7",
-                "character": "New Order"
-              }
-            }
-          ],
-          "weapons": [
-            "AK-47",
-            "Shotgun"
-          ],
-          "ammo": [
-            {
-              "name": "ShotgunAmmo",
-              "amount": 25
-            },
-            {
-              "name": "RifleAmmo",
-              "amount": 50
-            }
-          ]
-        }
-      ]
-    }
-  ]
+            ]
+          }
+        ]
+      }
+    ]
+  }
 }
