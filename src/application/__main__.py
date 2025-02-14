@@ -40,12 +40,12 @@ def init_agent_service_configs(game_start_timestamp) -> list[AgentServiceConfig]
     return configs
 
 
-def initialize_services():
+def initialize_services() -> None:
     user_nicknames_path = Path(DATA_FOLDER_PATH) / "user_nicknames.json"
     account_container = AccountContainer(file_path=user_nicknames_path)
 
 
-def preprocess_test():
+def preprocess_test() -> None:
     from application.bin.systemd_preprocessing_service.preprocess_v2 import (
         run_preprocess,
     )
@@ -55,10 +55,10 @@ def preprocess_test():
     asyncio.run(run_preprocess(json_path=json_path))
 
 
-def run_agent_service(configs):
+def run_agent_service(configs: list[AgentServiceConfig]) -> None:
     for config in configs:
-        print(f"Starting agent service with config: {config}")
-        agent_service.main(**config)
+        print(f"Starting agent service with config: {config.model_dump()}")
+        agent_service.main(**config.model_dump())
 
 
 if __name__ == "__main__":
