@@ -15,12 +15,12 @@ def init_agent_service_configs(game_start_timestamp) -> list[AgentServiceConfig]
     configs: list[AgentServiceConfig] = []
     traits_lists: list[list[Trait]] = [
         [
-            Trait("toxic", 50),
-            Trait("honest", 30),
+            Trait(name="toxic", value=50),
+            Trait(name="honest", value=30),
         ],
         [
-            Trait("toxic", 100),
-            Trait("honest", 1),
+            Trait(name="toxic", value=100),
+            Trait(name="honest", value=1),
         ],
     ]
     for model_id in ModelID.__members__.values():
@@ -29,7 +29,7 @@ def init_agent_service_configs(game_start_timestamp) -> list[AgentServiceConfig]
                 for future_window_size_sec in (3, 5):
                     for traits in traits_lists:
                         config = AgentServiceConfig(
-                            init_prompts=InitPrompts(traits),
+                            init_prompts=InitPrompts(traits=traits),
                             model_id=model_id,
                             temperature=temperature,
                             past_window_size_sec=past_window_size_sec,
@@ -58,7 +58,7 @@ def preprocess_test() -> None:
 def run_agent_service(configs: list[AgentServiceConfig]) -> None:
     for config in configs:
         print(f"Starting agent service with config: {config.model_dump()}")
-        agent_service.main(**config.model_dump())
+        agent_service.main(config)
 
 
 if __name__ == "__main__":

@@ -16,19 +16,17 @@ class ModelID(Enum):
 class Model(ABC):
     def __init__(self, model_id: ModelID, region: str) -> None:
         self.model_id = model_id
+        self.region = region
         self.arn = f"arn:aws:bedrock:{region}::foundation-model/{model_id.value}"
         self.bedrock_runtime = boto3.client("bedrock-runtime", region_name=region)
-        self.got_sentence_times: list[float] = []
+        self.delays: list[float] = []
 
-    def generate_sentences_from_stream(
-        self, stream_body, text_getter: Callable[[dict], str], start_time: float
-    ) -> Generator[str, None, None]:
+    def generate_sentences_from_stream(self, stream_body, text_getter: Callable[[dict], str]) -> Generator[str, None, None]:
         sentence = []
         for chunk in stream_body:
             text = text_getter(chunk)
             sentence.append(text)
             if any(char in text for char in (".", "!", "?")):
-                self.got_sentence_times.append(time.time() - start_time)
                 yield "".join(sentence)
                 sentence = []
         if sentence:
@@ -39,16 +37,22 @@ class Model(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_streamed_response(self, messages: list[dict], start_time: float, temperature: float = 0.9) -> Generator[str, None, None]:
+    def get_streamed_response(self, messages: list[dict], temperature: float = 0.9) -> Generator[str, None, None]:
         raise NotImplementedError
 
     @abstractmethod
     def get_content(self, prompt: str) -> dict | list:
         raise NotImplementedError
 
+    def get_model_stats(self) -> str:
+        avg = sum(self.delays) / len(self.delays)
+        min_delay, max_delay = min(self.delays), max(self.delays)
+        self.delays.clear()
+        return f"{self.model_id.value} latencies: avg={avg:.2f}sec, min={min_delay:.2f}sec, max={max_delay:.2f}sec"
+
 
 class Anthropic(Model):
-    def get_streamed_response(self, messages: list[dict], start_time: float, temperature: float = 0.9) -> Generator[str, None, None]:
+    def get_streamed_response(self, messages: list[dict], temperature: float = 0.9) -> Generator[str, None, None]:
         request = json.dumps(
             {
                 "anthropic_version": "bedrock-2023-05-31",
@@ -62,7 +66,7 @@ class Anthropic(Model):
             modelId=self.model_id.value,
             body=request,
         )
-        yield from self.generate_sentences_from_stream(stream["body"], self.get_text_from_chunk, start_time)
+        yield from self.generate_sentences_from_stream(stream["body"], self.get_text_from_chunk)
 
     def get_text_from_chunk(self, chunk: dict) -> str:
         delta = json.loads(chunk["chunk"]["bytes"].decode("utf-8")).get("delta")
@@ -86,7 +90,7 @@ class NovaPro(Model):
     def __init__(self, region="us-east-1") -> None:
         super().__init__(ModelID.NOVA_PRO, region)
 
-    def get_streamed_response(self, messages: list[dict], start_time: float, temperature: float = 0.9) -> Generator[str, None, None]:
+    def get_streamed_response(self, messages: list[dict], temperature: float = 0.9) -> Generator[str, None, None]:
         request = json.dumps(
             {
                 "inferenceConfig": {
@@ -101,7 +105,7 @@ class NovaPro(Model):
             modelId=self.model_id.value,
             body=request,
         )
-        yield from self.generate_sentences_from_stream(stream["body"], self.get_text_from_chunk, start_time)
+        yield from self.generate_sentences_from_stream(stream["body"], self.get_text_from_chunk)
 
     def get_content(self, prompt: str) -> dict:
         return {"text": prompt}
