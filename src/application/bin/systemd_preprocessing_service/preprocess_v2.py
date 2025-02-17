@@ -32,7 +32,11 @@ async def run_preprocess(json_path):
                 if player.user_id == '83248802-90e1-705c-8702-e6c497b686d4':
                     focused_players.append(player)
 
+            if not focused_players:
+                continue
+
             event.players = focused_players
+
 
             event_data_dict = event.model_dump()
 
