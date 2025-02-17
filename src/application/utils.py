@@ -2,6 +2,8 @@ import json
 import random
 from collections import deque
 
+from application.dtos.agent_service_config import InitPrompts
+
 
 def get_game_events(csv_filename: str) -> list[dict]:
     kills = []
@@ -15,22 +17,20 @@ def get_game_events(csv_filename: str) -> list[dict]:
     return kills
 
 
-def trim_queue(q: deque, context_window_size: int, init_prompts: list[str]) -> None:
+def trim_queue(q: deque, context_window_size: int, init_prompts: InitPrompts) -> None:
+    init_prompts_list = init_prompts.to_list()
     if len(q) + 2 > context_window_size:
-        for _ in range(len(init_prompts)):
+        for _ in range(len(init_prompts_list)):
             q.popleft()
         q.popleft()
         q.popleft()
-        for prompt in reversed(init_prompts):
+        for prompt in reversed(init_prompts_list):
             q.appendleft(prompt)
 
 
-def dump_message_to_file(role, message: str, filename: str) -> None:
-    with open(filename, "a") as f:
-        f.write(f"{role}: {message}\n")
-        if role == "User":
-            return
-        f.write("\n")
+def dump_dialogue_to_file(filename: str, dialogue: dict) -> None:
+    with open(filename, "w") as f:
+        json.dump(dialogue, f)
 
 
 def generate_batch_sizes(game_events_total: int) -> list[int]:

@@ -1,5 +1,4 @@
 import json
-import time
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Callable, Generator
@@ -47,7 +46,7 @@ class Model(ABC):
     def get_model_stats(self) -> str:
         avg = sum(self.delays) / len(self.delays)
         min_delay, max_delay = min(self.delays), max(self.delays)
-        self.delays.clear()
+        # self.delays.clear()
         return f"{self.model_id.value} latencies: avg={avg:.2f}sec, min={min_delay:.2f}sec, max={max_delay:.2f}sec"
 
 
@@ -61,7 +60,6 @@ class Anthropic(Model):
                 "messages": messages,
             }
         )
-
         stream = self.bedrock_runtime.invoke_model_with_response_stream(
             modelId=self.model_id.value,
             body=request,

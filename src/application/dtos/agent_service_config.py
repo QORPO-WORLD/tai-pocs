@@ -30,7 +30,7 @@ class InitPrompts(BaseModel):
                 "Requirement 3: You will also get some events which haven't happened in the game yet, you can take them into consideration but "
                 "YOU CAN'T MENTION THAT YOU HAVE INFO FROM THE FUTURE UNDER NO CIRCUMSTANCES, ONLY USE IT TO ADJUST YOUR SENTIMENT IN COMMENTING ON CURRENT EVENTS. "
                 "Requirement 4: You need to adjust the commentary sentiment. "
-                f"Show {', '.join(str(trait) for trait in self.traits)} in your comments. "
+                f"Be {', '.join(str(trait) for trait in self.traits)} in your comments. "
                 "Understood?"
             ),
             "Understood. I'm ready to commentate on the battle royale game events with given character settings.",
@@ -41,7 +41,9 @@ class AgentServiceConfig(BaseModel):
     init_prompts: InitPrompts = Field(...)
     past_window_size_sec: int = Field(default=5)
     future_window_size_sec: int = Field(default=3)
+    query_interval_sec: int = Field(default=10)
     game_start_timestamp: int = Field(...)
+    game_end_timestamp: int = Field(...)
     model_id: ModelID = Field(default=ModelID.NOVA_PRO)
     context_window_size: int = Field(default=20)
     temperature: float = Field(default=0.9)

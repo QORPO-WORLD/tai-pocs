@@ -11,32 +11,31 @@ shutdown_event = threading.Event()
 DATA_FOLDER_PATH = "data"
 
 
-def init_agent_service_configs(game_start_timestamp) -> list[AgentServiceConfig]:
+def init_agent_service_configs(game_start_timestamp, game_end_timestamp) -> list[AgentServiceConfig]:
     configs: list[AgentServiceConfig] = []
     traits_lists: list[list[Trait]] = [
         [
-            Trait(name="toxic", value=50),
-            Trait(name="honest", value=30),
-        ],
-        [
-            Trait(name="toxic", value=100),
-            Trait(name="honest", value=1),
+            Trait(name="toxic", value=30),
+            Trait(name="funny", value=70),
         ],
     ]
-    for model_id in ModelID.__members__.values():
-        for temperature in (0.5, 0.7, 0.9):
-            for past_window_size_sec in (5, 10):
-                for future_window_size_sec in (3, 5):
-                    for traits in traits_lists:
-                        config = AgentServiceConfig(
-                            init_prompts=InitPrompts(traits=traits),
-                            model_id=model_id,
-                            temperature=temperature,
-                            past_window_size_sec=past_window_size_sec,
-                            future_window_size_sec=future_window_size_sec,
-                            game_start_timestamp=game_start_timestamp,
-                        )
-                        configs.append(config)
+    for model_id in (
+        ModelID.NOVA_PRO.value,
+    ):
+        for temperature in (0.9,):
+            for query_interval_sec in (10,):
+                for traits in traits_lists:
+                    config = AgentServiceConfig(
+                        init_prompts=InitPrompts(traits=traits),
+                        model_id=model_id,
+                        temperature=temperature,
+                        past_window_size_sec=3,
+                        future_window_size_sec=1,
+                        query_interval_sec=query_interval_sec,
+                        game_start_timestamp=game_start_timestamp,
+                        game_end_timestamp=game_end_timestamp,
+                    )
+                    configs.append(config)
     return configs
 
 
@@ -64,5 +63,8 @@ def run_agent_service(configs: list[AgentServiceConfig]) -> None:
 if __name__ == "__main__":
     initialize_services()
     # preprocess_test()
-    configs = init_agent_service_configs(game_start_timestamp=1739395974)
+    configs = init_agent_service_configs(
+        game_start_timestamp=1739551320,
+        game_end_timestamp=1739551670,
+    )
     run_agent_service(configs)

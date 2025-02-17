@@ -10,7 +10,7 @@ from application.aws import AwsAPI
 from application.db_models import DatabaseConnection, GameState
 from application.dtos.agent_service_config import AgentServiceConfig
 from application.models import ModelID
-from application.utils import dump_message_to_file, trim_queue
+from application.utils import dump_dialogue_to_file, trim_queue
 
 
 def compose_prompt_from_events(past_events: list[dict], future_events: list[dict]) -> str:
@@ -42,22 +42,35 @@ def main(
     aws = AwsAPI()
     q = deque(config.init_prompts.to_list())
 
+    dialogue = [
+        {
+            "role": "User",
+            "message": q[-2],
+            "timestamp": config.game_start_timestamp,
+        },
+        {
+            "role": "Assistant",
+            "message": q[-1],
+            "timestamp": config.game_start_timestamp,
+        },
+    ]
+
     path = (
-        f"output/text/{config.model_id.value}/temp-{config.temperature}/"
-        f"past-{config.past_window_size_sec}-sec/future-{config.future_window_size_sec}-sec"
+        f"output/text/{config.model_id.value}-{config.temperature}-"
+        f"{config.past_window_size_sec}-{config.future_window_size_sec}-{config.query_interval_sec}"
     )
     if not os.path.exists(path):
         os.makedirs(path)
-    dialogue_filename = f"{path}/{config.init_prompts.traits}-dialogue.txt"
 
-    dump_message_to_file("User", q[-2], dialogue_filename)
-    dump_message_to_file("Assistant", q[-1], dialogue_filename)
+    dialogue_filename = f"{path}/{config.init_prompts.traits}-dialogue"
+    with open(f"{dialogue_filename}.txt", "a") as f:
+        f.write(f"{dialogue[-1]}\n")
 
     base_timestamp = config.game_start_timestamp
     db = DatabaseConnection()
     session = db.get_session()
 
-    while True:
+    while base_timestamp < config.game_end_timestamp:
         past_events: list[GameState] = (
             session.query(GameState)
             .filter(
@@ -78,7 +91,9 @@ def main(
             )
             .all()
         )
-        base_timestamp += config.past_window_size_sec
+        if not past_events:
+            base_timestamp += config.query_interval_sec
+            continue
 
         past_jsons = [json.loads(event.event_data) for event in past_events]
         future_jsons = [json.loads(event.event_data) for event in future_events]
@@ -87,22 +102,26 @@ def main(
         trim_queue(q, config.context_window_size, config.init_prompts)
 
         q.append(prompt)
-        dump_message_to_file("User", q[-1], dialogue_filename)
+        dialogue.append({"role": "User", "message": q[-1], "timestamp": base_timestamp})
 
         response = []
         try:
             current_timestamp = time.time()
-            bedrock_delays = []
-
-            for sentence in get_sentences(q, aws, config.model_id, config.temperature):
-                bedrock_delays.append(time.time() - current_timestamp)
-                response.append(sentence)
-                current_timestamp = time.time()
-            aws.models_mapping[config.model_id].delays = bedrock_delays
+            try:
+                for sentence in get_sentences(q, aws, config.model_id, config.temperature):
+                    response.append(sentence)
+                aws.models_mapping[config.model_id].delays.append(time.time() - current_timestamp)
+                print(aws.models_mapping[config.model_id].get_model_stats())
+            except Exception as err:
+                print(f"Timestamp {base_timestamp} will be retried. Error: {err}")
+                continue
+            except KeyboardInterrupt:
+                dump_dialogue_to_file(f"{dialogue_filename}.json", dialogue)
+                break
 
             path = (
-                f"output/audio/{config.model_id.value}/temp-{config.temperature}/"
-                f"past-{config.past_window_size_sec}-sec/future-{config.future_window_size_sec}-sec/{config.init_prompts.traits}"
+                f"output/audio/{config.model_id.value}-{config.temperature}-"
+                f"{config.past_window_size_sec}-{config.future_window_size_sec}-{config.query_interval_sec}-{config.init_prompts.traits}"
             )
             if not os.path.exists(path):
                 os.makedirs(path)
@@ -110,17 +129,30 @@ def main(
             audio_delays = []
             for i, sentence in enumerate(response):
                 current_timestamp = time.time()
-                audio_filename = f"{path}/{i + 1}-{base_timestamp - config.past_window_size_sec}.mp3"
+                audio_filename = f"{path}/{base_timestamp}-{i + 1}.mp3"
                 aws.convert_to_voice(sentence, audio_filename)
                 audio_delays.append(time.time() - current_timestamp)
 
             aws.delays = audio_delays
-
-            print(aws.models_mapping[config.model_id].get_model_stats())
             print(aws.get_polly_stats())
 
         except KeyboardInterrupt:
+            dump_dialogue_to_file(f"{dialogue_filename}.json", dialogue)
             break
 
         q.append("".join(response))
-        dump_message_to_file("Assistant", q[-1], dialogue_filename)
+        dialogue.append(
+            {
+                "role": "Assistant",
+                "message": q[-1],
+                "timestamp": base_timestamp,
+            }
+        )
+        with open(f"{dialogue_filename}.txt", "a") as f:
+            f.write(f"{dialogue[-1]}\n")
+
+        base_timestamp += config.query_interval_sec
+
+    dump_dialogue_to_file(f"{dialogue_filename}.json", dialogue)
+    print(aws.models_mapping[config.model_id].get_model_stats())
+    print(aws.get_polly_stats())

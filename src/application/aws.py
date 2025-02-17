@@ -92,7 +92,7 @@ class AwsAPI:
     def get_polly_stats(self) -> str:
         average_saved_audio_time = sum(self.delays) / len(self.delays)
         min_saved_audio_time, max_saved_audio_time = min(self.delays), max(self.delays)
-        self.delays.clear()
+        # self.delays.clear()
         return (
             f"Polly latencies: avg={average_saved_audio_time:.2f}sec, min={min_saved_audio_time:.2f}sec, max={max_saved_audio_time:.2f}sec"
         )
