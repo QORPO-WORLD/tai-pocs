@@ -75,14 +75,14 @@ class Player(BaseModel):
     user_id: str = Field(..., alias="user_id")
     user_nickname: str = Field(default="Unknown")
     character: str = Field(..., alias="character")
-    location: Location = Field(..., alias="location")
-    rotation: Rotation = Field(..., alias="rotation")
+    # location: Location = Field(..., alias="location")
+    # rotation: Rotation = Field(..., alias="rotation")
     hit_points: int = Field(..., alias="hit_points")
     shield: int = Field(..., alias="shield")
     current_state: List[str] = Field(..., alias="current_states")
     shot_list: List[Shot] = Field(..., alias="shot_list")
-    weapons: List[str] = Field(..., alias="weapons")
-    ammo: List[Ammo] = Field(..., alias="ammo")
+    # weapons: List[str] = Field(..., alias="weapons")
+    # ammo: List[Ammo] = Field(..., alias="ammo")
 
     @classmethod
     @field_validator("user_nickname", mode="after")
@@ -115,7 +115,7 @@ class Player(BaseModel):
 
 
 class GameState(BaseModel):
-    game_state_id: str = Field(default_factory=lambda: str(uuid4()))
+    # game_state_id: str = Field(default_factory=lambda: str(uuid4()))
     created_at: float = Field(..., alias="timestamp")
     players: List[Player] = Field(..., alias="players")
 

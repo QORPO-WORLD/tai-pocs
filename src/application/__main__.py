@@ -63,6 +63,6 @@ def run_agent_service(configs: list[AgentServiceConfig]) -> None:
 
 if __name__ == "__main__":
     initialize_services()
-    preprocess_test()
+    # preprocess_test()
     configs = init_agent_service_configs(game_start_timestamp=1739395974)
     run_agent_service(configs)
