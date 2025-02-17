@@ -7,9 +7,9 @@ from typing import List, Optional
 
 
 class Location(BaseModel):
-    x: int = Field(..., alias="x")
-    y: int = Field(..., alias="y")
-    z: int = Field(..., alias="z")
+    x: float = Field(..., alias="x")
+    y: float = Field(..., alias="y")
+    z: float = Field(..., alias="z")
 
     @classmethod
     def sample(cls):
@@ -17,9 +17,9 @@ class Location(BaseModel):
 
 
 class Rotation(BaseModel):
-    pitch: int = Field(..., alias="pitch")
-    yaw: int = Field(..., alias="yaw")
-    roll: int = Field(..., alias="roll")
+    pitch: float = Field(..., alias="pitch")
+    yaw: float = Field(..., alias="yaw")
+    roll: float = Field(..., alias="roll")
 
     @classmethod
     def sample(cls):
@@ -79,7 +79,7 @@ class Player(BaseModel):
     rotation: Rotation = Field(..., alias="rotation")
     hit_points: int = Field(..., alias="hit_points")
     shield: int = Field(..., alias="shield")
-    current_state: str = Field(..., alias="current_state")
+    current_state: List[str] = Field(..., alias="current_states")
     shot_list: List[Shot] = Field(..., alias="shot_list")
     weapons: List[str] = Field(..., alias="weapons")
     ammo: List[Ammo] = Field(..., alias="ammo")
@@ -107,7 +107,7 @@ class Player(BaseModel):
             rotation=Rotation.sample(),
             hit_points=100,
             shield=50,
-            current_state="Active",
+            current_states=["alive"],
             shot_list=[Shot.sample()],
             weapons=["Sample Weapon"],
             ammo=[Ammo.sample()],
@@ -116,7 +116,7 @@ class Player(BaseModel):
 
 class GameState(BaseModel):
     game_state_id: str = Field(default_factory=lambda: str(uuid4()))
-    created_at: int = Field(..., alias="timestamp")
+    created_at: float = Field(..., alias="timestamp")
     players: List[Player] = Field(..., alias="players")
 
     @classmethod

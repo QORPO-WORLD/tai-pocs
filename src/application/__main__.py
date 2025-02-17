@@ -50,7 +50,7 @@ def preprocess_test() -> None:
         run_preprocess,
     )
 
-    json_path = Path("data/playground.json")
+    json_path = Path("data/full_game_events_1.json")
 
     asyncio.run(run_preprocess(json_path=json_path))
 
