@@ -1,8 +1,10 @@
-import os
-import time
 import datetime
+import os
 import random
+import time
+
 import pygame
+
 
 def play_mp3_files_with_deltas(folder_path, initial_unix_timestamp):
     pygame.mixer.init()  # Initialize the mixer
@@ -10,13 +12,13 @@ def play_mp3_files_with_deltas(folder_path, initial_unix_timestamp):
     script_start_timestamp = int(time.time())
 
     # Get all mp3 files in the folder
-    mp3_files = [f for f in os.listdir(folder_path) if f.lower().endswith('.mp3')]
+    mp3_files = [f for f in os.listdir(folder_path) if f.lower().endswith(".mp3")]
 
     # Group files by timestamp and randomize indices within each timestamp
     mp3_files_by_timestamp = {}
     for mp3_file in mp3_files:
         # Extract the timestamp from the filename (assumes format: "<unix_timestamp>-<index>.mp3")
-        timestamp_str = os.path.splitext(mp3_file)[0].split('-')[0]
+        timestamp_str = os.path.splitext(mp3_file)[0].split("-")[0]
         try:
             timestamp = int(timestamp_str) - initial_unix_timestamp
             if timestamp not in mp3_files_by_timestamp:
@@ -87,8 +89,9 @@ def play_mp3_files_with_deltas(folder_path, initial_unix_timestamp):
         current_timestamp_record_index += 1
         next_timestamp_logged = False  # Reset flag for the next timestamp
 
+
 if __name__ == "__main__":
     # Example usage
-    folder_path = "30-70"  # Replace with your folder path
+    folder_path = "src/output/audio/2025-02-18_13-34-44"  # Replace with your folder path
     initial_unix_timestamp = 1739551230  # Set this to the initial time (e.g., first timestamp in your batch)
     play_mp3_files_with_deltas(folder_path, initial_unix_timestamp)

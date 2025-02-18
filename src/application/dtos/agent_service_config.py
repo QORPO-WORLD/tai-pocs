@@ -51,5 +51,6 @@ class AgentServiceConfig(BaseModel):
     def model_dump(self, *args, **kwargs):
         dump = super().model_dump(*args, **kwargs)
         del dump["init_prompts"]
-        dump["traits"] = self.init_prompts.traits
+        dump["traits"] = [str(trait) for trait in self.init_prompts.traits]
+        dump["model_id"] = self.model_id.value
         return dump

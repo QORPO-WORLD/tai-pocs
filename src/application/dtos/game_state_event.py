@@ -1,9 +1,9 @@
+from typing import List, Optional
 from uuid import uuid4
-from wsgiref.validate import validator
-from application.bin.account_service.account_countainer import AccountContainer
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import List, Optional
+
+from application.bin.account_service.account_container import AccountContainer
 
 
 class Location(BaseModel):
@@ -96,8 +96,6 @@ class Player(BaseModel):
         obj.user_nickname = nickname
         return obj
 
-
-
     @classmethod
     def sample(cls):
         return cls(
@@ -163,7 +161,8 @@ def main():
     # loads playground.json
 
     import json
-    with open('../../data/playground.json', 'r') as f:
+
+    with open("../../data/playground.json", "r") as f:
         data = json.load(f)
 
     model = GameStateGroupGameEvent(**data)

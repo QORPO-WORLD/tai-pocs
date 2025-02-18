@@ -2,81 +2,92 @@ import json
 import os
 import time
 from collections import deque
+from datetime import datetime
 from typing import Generator
 
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
 
 from application.aws import AwsAPI
+from application.bin.systemd_agent_service.utils import (
+    compose_prompt_from_events,
+    dump_dialogue_json,
+    dump_str_to_file,
+)
 from application.db_models import DatabaseConnection, GameState
 from application.dtos.agent_service_config import AgentServiceConfig
-from application.models import ModelID
-from application.utils import dump_dialogue_to_file, trim_queue
 
 
-def compose_prompt_from_events(past_events: list[dict], future_events: list[dict]) -> str:
-    return json.dumps(
-        {
-            "already_happened": past_events,
-            "will_happen_soon": future_events,
-        }
-    )
+class AgentService:
+    def __init__(self, config: AgentServiceConfig) -> None:
+        self.config = config
+        self.aws = AwsAPI()
+        self.db = DatabaseConnection()
+        self.dialogue_path, self.audio_path = self.make_output_paths()
 
+        self.base_timestamp = self.config.game_start_timestamp
+        self.q = deque(self.config.init_prompts.to_list())
+        self.dialogue = [
+            {"role": role, "message": message, "timestamp": self.config.game_start_timestamp}
+            for role, message in zip(("User", "Assistant"), (self.q[-2], self.q[-1]))
+        ]
+        self.dialogue_filename = f"{self.dialogue_path}/dialogue"
+        self.dump_configs()
 
-def get_sentences(q, aws: AwsAPI, model_id: ModelID, temperature: float) -> Generator[str, None, None]:
-    roles = ("user", "assistant")
-    model = aws.models_mapping[model_id]
+    def dump_configs(self) -> None:
+        for filename in (f"{self.audio_path}/config.json", f"{self.dialogue_path}/config.json"):
+            with open(filename, "w") as f:
+                json.dump(self.config.model_dump(), f)
 
-    messages = [
-        {
-            "role": roles[i % 2],
-            "content": [model.get_content(prompt)],
-        }
-        for i, prompt in enumerate(q)
-    ]
-    yield from aws.get_streamed_response(model_id, messages, temperature)
+    def make_output_paths(self) -> tuple[str, str]:
+        human_readable_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        audio_path = f"output/audio/{human_readable_timestamp}"
+        dialogue_path = f"output/text/{human_readable_timestamp}"
+        for path in (audio_path, dialogue_path):
+            if not os.path.exists(path):
+                os.makedirs(path)
 
+        return dialogue_path, audio_path
 
-def main(
-    config: AgentServiceConfig,
-) -> None:
-    aws = AwsAPI()
-    q = deque(config.init_prompts.to_list())
+    def get_sentences(self) -> Generator[str, None, None]:
+        roles = ("user", "assistant")
+        model = self.aws.models_mapping[self.config.model_id]
 
-    dialogue = [
-        {
-            "role": "User",
-            "message": q[-2],
-            "timestamp": config.game_start_timestamp,
-        },
-        {
-            "role": "Assistant",
-            "message": q[-1],
-            "timestamp": config.game_start_timestamp,
-        },
-    ]
+        messages = [
+            {
+                "role": roles[i % 2],
+                "content": [model.get_content(prompt)],
+            }
+            for i, prompt in enumerate(self.q)
+        ]
+        yield from self.aws.get_streamed_response(self.config.model_id, messages, self.config.temperature)
 
-    path = (
-        f"output/text/{config.model_id.value}-{config.temperature}-"
-        f"{config.past_window_size_sec}-{config.future_window_size_sec}-{config.query_interval_sec}"
-    )
-    if not os.path.exists(path):
-        os.makedirs(path)
+    def generate_response(self) -> list[str]:
+        current_timestamp = time.time()
+        response = []
 
-    dialogue_filename = f"{path}/{config.init_prompts.traits}-dialogue"
-    with open(f"{dialogue_filename}.txt", "a") as f:
-        f.write(f"{dialogue[-1]}\n")
+        for sentence in self.get_sentences():
+            response.append(sentence)
+        self.aws.models_mapping[self.config.model_id].delays.append(time.time() - current_timestamp)
 
-    base_timestamp = config.game_start_timestamp
-    db = DatabaseConnection()
-    session = db.get_session()
+        return response
 
-    while base_timestamp < config.game_end_timestamp:
+    def generate_audios(self, response: list[str]) -> None:
+        audio_delays = []
+        for i, sentence in enumerate(response):
+            current_timestamp = time.time()
+            audio_filename = f"{self.audio_path}/{self.base_timestamp}-{i + 1}.mp3"
+            self.aws.convert_to_voice(sentence, audio_filename)
+            audio_delays.append(time.time() - current_timestamp)
+        self.aws.delays = audio_delays
+
+    def get_events_from_db(self, session: Session) -> tuple[list[GameState], list[GameState]]:
         past_events: list[GameState] = (
             session.query(GameState)
             .filter(
                 and_(
-                    GameState.event_created_at >= base_timestamp,
-                    GameState.event_created_at < base_timestamp + config.past_window_size_sec,
+                    GameState.event_created_at >= self.base_timestamp,
+                    GameState.event_created_at < self.base_timestamp + self.config.past_window_size_sec,
                 )
             )
             .all()
@@ -85,74 +96,59 @@ def main(
             session.query(GameState)
             .filter(
                 and_(
-                    GameState.event_created_at >= base_timestamp + config.past_window_size_sec,
-                    GameState.event_created_at < base_timestamp + config.past_window_size_sec + config.future_window_size_sec,
+                    GameState.event_created_at >= self.base_timestamp + self.config.past_window_size_sec,
+                    GameState.event_created_at
+                    < self.base_timestamp + self.config.past_window_size_sec + self.config.future_window_size_sec,
                 )
             )
             .all()
         )
-        if not past_events:
-            base_timestamp += config.query_interval_sec
-            continue
+        return past_events, future_events
 
-        past_jsons = [json.loads(event.event_data) for event in past_events]
-        future_jsons = [json.loads(event.event_data) for event in future_events]
+    def print_stats(self) -> None:
+        print(self.aws.models_mapping[self.config.model_id].get_model_stats())
+        print(self.aws.get_polly_stats())
 
-        prompt = compose_prompt_from_events(past_jsons, future_jsons)
-        trim_queue(q, config.context_window_size, config.init_prompts)
+    def _trim_queue(self) -> None:
+        init_prompts_list = self.config.init_prompts.to_list()
+        if len(self.q) + 2 > self.config.context_window_size:
+            for _ in range(len(init_prompts_list)):
+                self.q.popleft()
+            self.q.popleft()
+            self.q.popleft()
+            for prompt in reversed(init_prompts_list):
+                self.q.appendleft(prompt)
 
-        q.append(prompt)
-        dialogue.append({"role": "User", "message": q[-1], "timestamp": base_timestamp})
+    def main(self) -> None:
+        session = self.db.get_session()
+        dump_str_to_file(f"{self.dialogue_filename}.txt", self.dialogue[-1])
 
-        response = []
-        try:
-            current_timestamp = time.time()
+        while self.base_timestamp < self.config.game_end_timestamp:
+            past_events, future_events = self.get_events_from_db(session)
+            if not past_events:
+                self.base_timestamp += self.config.query_interval_sec
+                continue
+
+            prompt = compose_prompt_from_events(past_events, future_events)
+            self._trim_queue()
+
+            self.q.append(prompt)
+            self.dialogue.append({"role": "User", "message": self.q[-1], "timestamp": self.base_timestamp})
             try:
-                for sentence in get_sentences(q, aws, config.model_id, config.temperature):
-                    response.append(sentence)
-                aws.models_mapping[config.model_id].delays.append(time.time() - current_timestamp)
-                print(aws.models_mapping[config.model_id].get_model_stats())
+                sentences = self.generate_response()
+                self.generate_audios(sentences)
+                self.print_stats()
             except Exception as err:
-                print(f"Timestamp {base_timestamp} will be retried. Error: {err}")
+                print(f"Timestamp {self.base_timestamp} will be retried. Error: {err}")
                 continue
             except KeyboardInterrupt:
-                dump_dialogue_to_file(f"{dialogue_filename}.json", dialogue)
                 break
 
-            path = (
-                f"output/audio/{config.model_id.value}-{config.temperature}-"
-                f"{config.past_window_size_sec}-{config.future_window_size_sec}-{config.query_interval_sec}-{config.init_prompts.traits}"
-            )
-            if not os.path.exists(path):
-                os.makedirs(path)
+            self.q.append("".join(sentences))
+            self.dialogue.append({"role": "Assistant", "message": self.q[-1], "timestamp": self.base_timestamp})
+            dump_str_to_file(f"{self.dialogue_filename}.txt", self.dialogue[-1])
 
-            audio_delays = []
-            for i, sentence in enumerate(response):
-                current_timestamp = time.time()
-                audio_filename = f"{path}/{base_timestamp}-{i + 1}.mp3"
-                aws.convert_to_voice(sentence, audio_filename)
-                audio_delays.append(time.time() - current_timestamp)
+            self.base_timestamp += self.config.query_interval_sec
 
-            aws.delays = audio_delays
-            print(aws.get_polly_stats())
-
-        except KeyboardInterrupt:
-            dump_dialogue_to_file(f"{dialogue_filename}.json", dialogue)
-            break
-
-        q.append("".join(response))
-        dialogue.append(
-            {
-                "role": "Assistant",
-                "message": q[-1],
-                "timestamp": base_timestamp,
-            }
-        )
-        with open(f"{dialogue_filename}.txt", "a") as f:
-            f.write(f"{dialogue[-1]}\n")
-
-        base_timestamp += config.query_interval_sec
-
-    dump_dialogue_to_file(f"{dialogue_filename}.json", dialogue)
-    print(aws.models_mapping[config.model_id].get_model_stats())
-    print(aws.get_polly_stats())
+        dump_dialogue_json(f"{self.dialogue_filename}.json", self.dialogue)
+        self.print_stats()

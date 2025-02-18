@@ -1,19 +1,24 @@
-from collections import deque
+import json
+
+from application.db_models import GameState
 
 
-def trim_queue(q: deque, context_window_size: int, init_prompts: list[str]) -> None:
-    if len(q) + 2 > context_window_size:
-        for _ in range(len(init_prompts)):
-            q.popleft()
-        q.popleft()
-        q.popleft()
-        for prompt in reversed(init_prompts):
-            q.appendleft(prompt)
-
-
-def dump_message_to_file(role, message: str, filename: str) -> None:
+def dump_str_to_file(filename: str, message: str) -> None:
     with open(filename, "a") as f:
-        f.write(f"{role}: {message}\n")
-        if role == "User":
-            return
-        f.write("\n")
+        f.write(json.dumps(message) + "\n")
+
+
+def dump_dialogue_json(filename: str, dialogue: dict) -> None:
+    with open(filename, "w") as f:
+        json.dump(dialogue, f)
+
+
+def compose_prompt_from_events(past_events: list[GameState], future_events: list[GameState]) -> str:
+    past_jsons = [json.loads(event.event_data) for event in past_events]
+    future_jsons = [json.loads(event.event_data) for event in future_events]
+    return json.dumps(
+        {
+            "already_happened": past_jsons,
+            "will_happen_soon": future_jsons,
+        }
+    )

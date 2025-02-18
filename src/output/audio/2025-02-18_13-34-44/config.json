@@ -1,0 +1,1 @@
+{"past_window_size_sec": 3, "future_window_size_sec": 1, "query_interval_sec": 10, "game_start_timestamp": 1739551230, "game_end_timestamp": 1739551670, "model_id": "amazon.nova-pro-v1:0", "context_window_size": 20, "temperature": 0.9, "traits": ["30.0% toxic", "70.0% funny"]}

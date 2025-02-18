@@ -2,8 +2,8 @@ import asyncio
 import threading
 from pathlib import Path
 
-from application.bin.account_service.account_countainer import AccountContainer
-from application.bin.systemd_agent_service import agent_service
+from application.bin.account_service.account_container import AccountContainer
+from application.bin.systemd_agent_service.agent_service import AgentService
 from application.dtos.agent_service_config import AgentServiceConfig, InitPrompts, Trait
 from application.models import ModelID
 
@@ -19,9 +19,7 @@ def init_agent_service_configs(game_start_timestamp, game_end_timestamp) -> list
             Trait(name="funny", value=70),
         ],
     ]
-    for model_id in (
-        ModelID.NOVA_PRO.value,
-    ):
+    for model_id in (ModelID.NOVA_PRO.value,):
         for temperature in (0.9,):
             for query_interval_sec in (10,):
                 for traits in traits_lists:
@@ -57,14 +55,14 @@ def preprocess_test() -> None:
 def run_agent_service(configs: list[AgentServiceConfig]) -> None:
     for config in configs:
         print(f"Starting agent service with config: {config.model_dump()}")
-        agent_service.main(config)
+        AgentService(config).main()
 
 
 if __name__ == "__main__":
     initialize_services()
     # preprocess_test()
     configs = init_agent_service_configs(
-        game_start_timestamp=1739551320,
+        game_start_timestamp=1739551230,
         game_end_timestamp=1739551670,
     )
     run_agent_service(configs)
