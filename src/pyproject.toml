@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [tool.poetry.dependencies]
-qorpo-data-structures = { git = "https://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@github.com/QORPO-WORLD/qorpo-data-structures.git", branch = "develop" }
+qorpo-data-structures = { git = "https://${GH_PKG_TOKEN}@github.com/QORPO-WORLD/qorpo-data-structures.git", branch = "develop" }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
